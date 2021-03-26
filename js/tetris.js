@@ -14,9 +14,9 @@ let tempMovingItem;
 const BLOCKS = {
     tree:[
         [[2,1],[0,1],[1,0],[1,1]],
-        [],
-        [],
-        [],
+        [[1,2],[0,1],[1,0],[1,1]],
+        [[1,2],[0,1],[2,1],[1,1]],
+        [[1,2],[1,0],[2,1],[1,1]],
     ]
 }
 
@@ -48,17 +48,66 @@ function prependNewLine(){
     li.prepend(ul);
     playground.prepend(li);
 }
-function renderBlocks(){
+function renderBlocks(moveBlock=""){//인자값 보낼 때 있고 안보낼 때 있어서 ""으로 처리
     const {type, direction, top, left} = tempMovingItem;
-    
-    BLOCKS[type][direction].forEach(block=>{
-        const x = block[0] + left;
-        const y = block[1] + top;
-        const target = playground.childNodes[y].childNodes[0].childNodes[x];
-        target.classList.add(type);
+    const movingBlocks = document.querySelectorAll(".moving");
+    movingBlocks.forEach(moving => {
+        moving.classList.remove(type, "moving");
     })
+    BLOCKS[type][direction].some(block=>{
+        const x = block[0] + left;
+        const y = block[1] + top;//조건 ? 참일경우 : 거짓일경우 삼항연산자
+        console.log(playground.childNodes[y]);
+        const target = playground.childNodes[y] ? playground.childNodes[y].childNodes[0].childNodes[x] : null;
+        const isAvailable = checkEmpty(target);
+        if(isAvailable){
+            target.classList.add(type, "moving");
+        } else {
+            tempMovingItem = {...movingItem}
+            setTimeout(()=> {
+                renderBlocks()
+                if(moveType === "top"){
+                    seizeBlock();
+                }
+            }, 0)//재귀함수call stack overflow?발생방지
+            return true;
+        }
+    })
+    movingItem.left = left;
+    movingItem.top = top;
+    movingItem.direction = direction;
 }
-function moveBlock
+function seizeBlock(){
+    const movingBlocks = document.querySelectorAll(".moving");
+    movingBlocks.forEach(moving => {
+        moving.classList.remove("moving");
+        moving.classList.add("seized");
+    })
+    generateNewBlock();
+}
+function generateNewBlock(){
+    movingItem.top = 0;
+    movingItem.left = 3;
+    tempMovingItem = {...movingItem}
+    renderBlocks();
+}
+
+function checkEmpty(target){
+    if(!target || target.classList.contains("seized")){
+        return false;
+    }
+    return true;
+}
+
+function moveBlock(moveType, amount){
+    tempMovingItem[moveType] += amount;
+    renderBlocks(moveType);
+}
+function changeDirection(){
+    const direction = tempMovingItem.direction;
+    direction === 3 ? tempMovingItem.direction = 0 : tempMovingItem.direction +=1;
+    renderBlocks();
+}
 //event handling
 document.addEventListener("keydown", e=>{
     switch(e.keyCode){
@@ -67,7 +116,14 @@ document.addEventListener("keydown", e=>{
             break;
         case 37:
             moveBlock("left", -1);
+            break;
+        case 40:
+            moveBlock("top", 1);
+            break;
+        case 38:
+            changeDirection();
+            break;
         default:
             break;
     }
-})
+});
