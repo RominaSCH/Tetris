@@ -1,27 +1,23 @@
+import BLOCKS from "./blocks.js"
 //DOM
 const playground = document.querySelector(".playground > ul");
-
+const gameText = document.querySelector(".game-text");
+const scoreDisplay = document.querySelector(".score");
+const restartBtn = document.querySelector(".game-text>button");
 //Setting
 const GAME_ROWS = 20;
 const GAME_COLS = 10;
 
 //variables
 let score = 0;
-let duration = 500;
+let duration = 600;
 let downInterval;
 let tempMovingItem;
-
-const BLOCKS = {
-    tree:[
-        [[2,1],[0,1],[1,0],[1,1]],
-        [[1,2],[0,1],[1,0],[1,1]],
-        [[1,2],[0,1],[2,1],[1,1]],
-        [[1,2],[1,0],[2,1],[1,1]],
-    ]
-}
-
+//level이나 조절 바를 통해서 duration을 조절하는 기능 추가?
+//콤보
+//멀티 nodejs 이용
 const movingItem = {
-    type:"tree",
+    type:"",
     direction:0,
     top:0,
     left:0,
@@ -35,7 +31,7 @@ function init(){
     for(let i=0; i<GAME_ROWS; i++){
         prependNewLine();
     }
-    renderBlocks();
+    generateNewBlock();
 }
 
 function prependNewLine(){
@@ -48,7 +44,7 @@ function prependNewLine(){
     li.prepend(ul);
     playground.prepend(li);
 }
-function renderBlocks(moveBlock=""){//인자값 보낼 때 있고 안보낼 때 있어서 ""으로 처리
+function renderBlocks(moveType=""){//인자값 보낼 때 있고 안보낼 때 있어서 ""으로 처리
     const {type, direction, top, left} = tempMovingItem;
     const movingBlocks = document.querySelectorAll(".moving");
     movingBlocks.forEach(moving => {
@@ -61,11 +57,15 @@ function renderBlocks(moveBlock=""){//인자값 보낼 때 있고 안보낼 때 
         const target = playground.childNodes[y] ? playground.childNodes[y].childNodes[0].childNodes[x] : null;
         const isAvailable = checkEmpty(target);
         if(isAvailable){
-            target.classList.add(type, "moving");
+            target.classList.add(type,"moving");
         } else {
             tempMovingItem = {...movingItem}
+            if(moveType === 'retry'){
+                clearInterval(downInterval);
+                showGameoverText();
+            }
             setTimeout(()=> {
-                renderBlocks()
+                renderBlocks('retry')
                 if(moveType === "top"){
                     seizeBlock();
                 }
@@ -83,11 +83,40 @@ function seizeBlock(){
         moving.classList.remove("moving");
         moving.classList.add("seized");
     })
+    checkMatch();
+}
+function checkMatch(){
+    const childNodes = playground.childNodes;
+    childNodes.forEach(child=>{
+        let matched = true;
+        child.children[0].childNodes.forEach(li=>{
+            if(!li.classList.contains("seized")){
+                matched = false;
+            }
+        })
+        if(matched){
+            child.remove();
+            prependNewLine();
+            score++;
+            scoreDisplay.innerText = score;
+
+        }
+    })
     generateNewBlock();
 }
 function generateNewBlock(){
+
+    clearInterval(downInterval);
+    downInterval = setInterval(() => {
+        moveBlock("top", 1);
+    }, duration)
+
+    const blockArray = Object.entries(BLOCKS);
+    const randomIndex = Math.floor(Math.random() * blockArray.length);
+    movingItem.type = blockArray[randomIndex][0];
     movingItem.top = 0;
     movingItem.left = 3;
+    movingItem.direction = 0;
     tempMovingItem = {...movingItem}
     renderBlocks();
 }
@@ -108,6 +137,15 @@ function changeDirection(){
     direction === 3 ? tempMovingItem.direction = 0 : tempMovingItem.direction +=1;
     renderBlocks();
 }
+function dropBlock(){
+    clearInterval(downInterval);
+    downInterval = setInterval(() => {
+        moveBlock("top",1);
+    }, 10);
+}
+function showGameoverText(){
+    gameText.style.display="flex";
+}
 //event handling
 document.addEventListener("keydown", e=>{
     switch(e.keyCode){
@@ -123,7 +161,17 @@ document.addEventListener("keydown", e=>{
         case 38:
             changeDirection();
             break;
+        case 32:
+            dropBlock();
         default:
             break;
     }
 });
+
+restartBtn.addEventListener("click",()=>{
+    playground.innerHTML = "";
+    gameText.style.display = "none";
+    score = 0;
+    scoreDisplay.innerText = score;
+    init();
+})
